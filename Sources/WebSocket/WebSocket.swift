@@ -67,14 +67,14 @@ public class WebSocket {
         self.isGroupOwned = !eventLoopGroup.isShared
     }
     
-    public func connect(to url: String, headers: HTTPHeaders = [:], timeout: TimeAmount = 10) throws {
+    public func connect(to url: String, headers: HTTPHeaders = [:], timeout: TimeAmount = .seconds(10)) throws {
         guard let url = URL(string: url) else {
             throw WebSocketError.invalidURL
         }
         connect(url: url, headers: headers, timeout: timeout)
     }
     
-    public func connect(url: URL, headers: HTTPHeaders = [:], timeout: TimeAmount = 10) {
+    public func connect(url: URL, headers: HTTPHeaders = [:], timeout: TimeAmount = .seconds(10)) {
         guard channel == nil, !connecting else {
             callbackQueue.async { self.onError?(.alreadyConnected, self) }
             return
