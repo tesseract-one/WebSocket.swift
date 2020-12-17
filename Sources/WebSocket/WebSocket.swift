@@ -14,6 +14,7 @@ import NIOSSL
 
 public class WebSocket {
     private let group: EventLoopGroup
+    private let isGroupOwned: Bool
     private let maxFrameSize: Int
     private let tlsConfiguration: TLSConfiguration
     
@@ -54,6 +55,7 @@ public class WebSocket {
     
     public init(
         callbackQueue: DispatchQueue = .main,
+        eventLoopGroup: WebSocketEventLoopGroup = .createNew,
         tlsConfiguration: TLSConfiguration = .forClient(),
         maxFrameSize: Int = 1 << 14
     ) {
@@ -61,7 +63,8 @@ public class WebSocket {
         self.onError = {err, _ in print("[WebSocket Error]: \(err)")}
         self.maxFrameSize = maxFrameSize
         self.tlsConfiguration = tlsConfiguration
-        self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        self.group = eventLoopGroup.group
+        self.isGroupOwned = !eventLoopGroup.isShared
     }
     
     public func connect(to url: String, headers: HTTPHeaders = [:]) throws {
@@ -252,8 +255,14 @@ public class WebSocket {
     }
     
     deinit {
-        assert(channel == nil, "WebSocket isn't disconnected")
-        try! self.group.syncShutdownGracefully()
+        if let channel = channel, isConnected {
+            let future = channel.closeFuture
+            disconnect()
+            try? future.wait()
+        }
+        if (isGroupOwned) {
+            try! group.syncShutdownGracefully()
+        }
     }
 }
 
