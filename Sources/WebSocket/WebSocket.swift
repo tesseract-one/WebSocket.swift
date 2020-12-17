@@ -277,10 +277,8 @@ extension WebSocket {
             case .text:
                 callbackQueue.async { self.onText?(frameSequence.string()!, self) }
             case .pong:
-                self.waitingForPong = false
+                waitingForPong = false
                 callbackQueue.async { self.onPong?(self) }
-            case .ping:
-                callbackQueue.async { self.onPing?(self) }
             default: break
             }
             frameBuffer = nil
@@ -361,6 +359,7 @@ extension WebSocket {
                 frameData.webSocketUnmask(maskingKey)
             }
             _handleError(send(raw: frameData, opcode: .pong, fin: true))
+            callbackQueue.async { self.onPing?(self) }
         } else {
             _handleError(close(code: .protocolError))
         }
