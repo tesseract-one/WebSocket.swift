@@ -33,7 +33,7 @@ Library tested on all Apple platforms and Linix
   s.dependency 'SwiftNIOSSL', '~> 2.0'
   
   s.test_spec 'WebSocketTests' do |test_spec|
-    test_spec.platforms = {:ios => '9.0', :osx => '10.10', :tvos => '9.0'}
+    test_spec.platforms = {:ios => '10.0', :osx => '10.12', :tvos => '10.0'}
     test_spec.source_files = 'Tests/WebSocketTests/**/*.swift'
   end
 end
