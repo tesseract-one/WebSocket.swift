@@ -144,7 +144,7 @@ public class WebSocket {
         let connected = connect.flatMap { _ in upgradePromise.futureResult }
         connected.whenFailure { err in
             self.connecting = false
-            self.callbackQueue.async { self.onError?(.transport(error: err), self) }
+            self._error(err)
         }
     }
     
@@ -242,15 +242,17 @@ public class WebSocket {
         f(channel)
     }
     
+    private func _error(_ error: Error) {
+        let fixed = error as? WebSocketError ?? .transport(error: error)
+        self.callbackQueue.async { self.onError?(fixed, self) }
+    }
+    
     private func _handleError<R>(_ future: EventLoopFuture<R>) {
-        future.whenFailure { error in
-            let fixed = error as? WebSocketError ?? .transport(error: error)
-            self.callbackQueue.async { self.onError?(fixed, self) }
-        }
+        future.whenFailure(self._error)
     }
     
     deinit {
-        assert (channel == nil, "WebSocket isn't disconnected")
+        assert(channel == nil, "WebSocket isn't disconnected")
         try! self.group.syncShutdownGracefully()
     }
 }
@@ -328,16 +330,24 @@ extension WebSocket {
     
     private func _handleData(frame: WebSocketFrame) {
         var frameSequence = frameBuffer ?? WebSocketFrameBuffer(type: frame.opcode)
-        // append this frame and update the sequence
-        frameSequence.append(frame)
-        frameBuffer = frameSequence
+        do {
+            // append this frame and update the sequence
+            try frameSequence.append(frame)
+            frameBuffer = frameSequence
+        } catch {
+            _handleError(close(code: .protocolError))
+        }
     }
     
     private func _handleContinuation(frame: WebSocketFrame) {
         if var frameSequence = frameBuffer {
-            // append this frame and update
-            frameSequence.append(frame)
-            frameBuffer = frameSequence
+            do {
+                // append this frame and update
+                try frameSequence.append(frame)
+                frameBuffer = frameSequence
+            } catch {
+                _handleError(close(code: .protocolError))
+            }
         } else {
             _handleError(close(code: .protocolError))
         }

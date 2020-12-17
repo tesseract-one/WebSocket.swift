@@ -7,10 +7,12 @@
 
 import Foundation
 import NIOHTTP1
+import NIOWebSocket
 
 public enum WebSocketError: Error, LocalizedError {
     case invalidURL
     case invalidResponseStatus(head: HTTPResponseHead)
+    case opcodeMismatch(buffer: WebSocketOpcode, frame: WebSocketOpcode)
     case transport(error: Error)
     case alreadyConnected
     case disconnected

@@ -19,7 +19,10 @@ struct WebSocketFrameBuffer {
         self.type = type
     }
 
-    mutating func append(_ frame: WebSocketFrame) {
+    mutating func append(_ frame: WebSocketFrame) throws {
+        guard frame.opcode == type else {
+            throw WebSocketError.opcodeMismatch(buffer: type, frame: frame.opcode)
+        }
         var data = frame.unmaskedData
         buffer.writeBuffer(&data)
     }
