@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'TesseractWebSocket'
-  s.version          = '0.0.1'
+  s.version          = '0.0.2'
   s.summary          = 'Cross-platform WebSocket client implementation based on Swift NIO'
 
   s.description      = <<-DESC
