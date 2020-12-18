@@ -6,6 +6,7 @@ extension WebSocketTests {
     //   `swift test --generate-linuxmain`
     // to regenerate.
     static let __allTests__WebSocketTests = [
+        ("testSharedEventLoopGroup", testSharedEventLoopGroup),
         ("testWebSocketEcho", testWebSocketEcho),
         ("testWebSocketTLSEcho", testWebSocketTLSEcho),
     ]

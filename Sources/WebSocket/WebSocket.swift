@@ -55,7 +55,7 @@ public class WebSocket {
     
     public init(
         callbackQueue: DispatchQueue = .main,
-        eventLoopGroup: WebSocketEventLoopGroup = .createNew,
+        eventLoopGroup: WebSocketEventLoopGroupProvider = .createNew(threads: 1),
         tlsConfiguration: TLSConfiguration = .forClient(),
         maxFrameSize: Int = 1 << 14
     ) {

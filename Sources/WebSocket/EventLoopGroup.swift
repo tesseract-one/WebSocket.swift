@@ -8,8 +8,8 @@
 import Foundation
 import NIO
 
-public enum WebSocketEventLoopGroup {
-    case createNew
+public enum WebSocketEventLoopGroupProvider {
+    case createNew(threads: Int)
     case shared(EventLoopGroup)
     
     public var isShared: Bool {
@@ -21,7 +21,7 @@ public enum WebSocketEventLoopGroup {
     
     public var group: EventLoopGroup {
         switch self {
-        case .createNew: return MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        case .createNew(threads: let t): return MultiThreadedEventLoopGroup(numberOfThreads: t)
         case .shared(let group): return group
         }
     }

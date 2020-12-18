@@ -55,4 +55,31 @@ final class WebSocketTests: XCTestCase {
         
         wait(for: [closed], timeout: 5)
     }
+    
+    func testSharedEventLoopGroup() {
+        let closed = expectation(description: "Socket closed")
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 2)
+        
+        let socket = WebSocket(eventLoopGroup: .shared(group))
+        
+        socket.connect(url: URL(string: "wss://echo.websocket.org")!)
+        
+        socket.onConnected = { ws in
+            ws.send("hello")
+        }
+        
+        socket.onText = { text, ws in
+            XCTAssertEqual(text, "hello")
+            ws.disconnect()
+        }
+        
+        socket.onDisconnected = { code, _ in
+            XCTAssertEqual(code, .normalClosure)
+            closed.fulfill()
+        }
+        
+        wait(for: [closed], timeout: 5)
+        
+        XCTAssertNoThrow(try group.syncShutdownGracefully())
+    }
 }
