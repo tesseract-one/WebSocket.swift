@@ -32,7 +32,7 @@ public class WebSocket {
     // Set this interval in onConnected handler.
     public var pingInterval: TimeAmount? {
         didSet {
-            if pingInterval != nil {
+            if pingInterval != nil && isConnected {
                 if scheduledTimeoutTask == nil {
                     waitingForPong = false
                     self.pingAndScheduleNextTimeoutTask()
@@ -204,6 +204,9 @@ public class WebSocket {
         return channel.pipeline.addHandler(WebSocketHandler(webSocket: self)).map { [weak self] in
             guard let sself = self else { return }
             sself.connecting = false
+            if sself.pingInterval != nil {
+                sself.pingAndScheduleNextTimeoutTask()
+            }
             sself.callbackQueue.async { sself.onConnected?(sself) }
         }
     }
@@ -214,6 +217,7 @@ public class WebSocket {
         waitingForClose = nil
         scheduledTimeoutTask?.cancel()
         scheduledTimeoutTask = nil
+        waitingForPong = false
         callbackQueue.async { self.onDisconnected?(code, self) }
     }
     
