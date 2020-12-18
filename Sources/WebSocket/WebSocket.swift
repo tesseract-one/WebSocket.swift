@@ -256,13 +256,12 @@ public class WebSocket {
     }
     
     deinit {
-        if let channel = channel, isConnected {
-            let future = channel.closeFuture
-            disconnect()
-            try? future.wait()
-        }
         if (isGroupOwned) {
-            try! group.syncShutdownGracefully()
+            group.shutdownGracefully { error in
+                if let err = error {
+                    fatalError("Can't shutdown EventLoopGroup: \(err)")
+                }
+            }
         }
     }
 }

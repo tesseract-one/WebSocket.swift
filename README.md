@@ -62,6 +62,8 @@ socket.onText = { text, ws in
 socket.connect(url: URL(string: "wss://echo.websocket.org")!)
 ```
 
+### WARNING! You should always disconnect WebSocket. It will leak otherwise! And will leak thread too!
+
 ## Author
 
  - [Tesseract Systems, Inc.](mailto:info@tesseract.one)

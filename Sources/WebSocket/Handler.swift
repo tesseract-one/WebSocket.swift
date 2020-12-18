@@ -23,7 +23,7 @@ private extension WebSocketErrorCode {
 class WebSocketHandler: ChannelInboundHandler {
     typealias InboundIn = WebSocketFrame
     typealias OutboundOut = WebSocketFrame
-    private weak var webSocket: WebSocket?
+    private var webSocket: WebSocket
 
     init(webSocket: WebSocket) {
         self.webSocket = webSocket
@@ -31,7 +31,7 @@ class WebSocketHandler: ChannelInboundHandler {
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let frame = unwrapInboundIn(data)
-        webSocket?.handle(frame: frame)
+        webSocket.handle(frame: frame)
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
@@ -41,7 +41,7 @@ class WebSocketHandler: ChannelInboundHandler {
         } else {
             errorCode = .unexpectedServerError
         }
-        _ = webSocket?.close(code: errorCode)
+        _ = webSocket.close(code: errorCode)
 
         // We always forward the error on to let others see it.
         context.fireErrorCaught(error)
@@ -49,7 +49,7 @@ class WebSocketHandler: ChannelInboundHandler {
 
     func channelInactive(context: ChannelHandlerContext) {
         let closedAbnormally = WebSocketErrorCode.unknown(1006)
-        _ = webSocket?.close(code: closedAbnormally)
+        _ = webSocket.close(code: closedAbnormally)
 
         // We always forward the error on to let others see it.
         context.fireChannelInactive()
