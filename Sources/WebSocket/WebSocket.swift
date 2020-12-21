@@ -119,10 +119,8 @@ public class WebSocket {
         raw buffer: ByteBuffer, opcode: WebSocketOpcode, fin: Bool = true,
         sent: Optional<(WebSocketError?) -> Void> = nil
     ) {
-        _withChannel(error: sent) { _ in
-            self._handleError(self._send(buffer: buffer, opcode: opcode, fin: fin)) { err in
-                sent?(err.map{.fromNio(error: $0)})
-            }
+        self._handleError(self._send(buffer: buffer, opcode: opcode, fin: fin)) { err in
+            sent?(err.map{ err as? WebSocketError ?? .fromNio(error: $0)})
         }
     }
     
