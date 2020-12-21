@@ -53,9 +53,9 @@ socket.onConnected = { ws in
   ws.send("hello")
 }
 
-socket.onText = { text, ws in
-  print("Received", text)
-  assert(text == "hello")
+socket.onData = { data, ws in
+  print("Received", data)
+  assert(data.text! == "hello")
   ws.disconnect()
 }
 
