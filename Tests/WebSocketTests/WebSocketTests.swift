@@ -20,8 +20,8 @@ final class WebSocketTests: XCTestCase {
             ws.send("hello")
         }
         
-        socket.onText = { text, ws in
-            XCTAssertEqual(text, "hello")
+        socket.onData = { data, ws in
+            XCTAssertEqual(data.text, "hello")
             ws.disconnect()
         }
         
@@ -43,8 +43,8 @@ final class WebSocketTests: XCTestCase {
             ws.send("hello")
         }
         
-        socket.onText = { text, ws in
-            XCTAssertEqual(text, "hello")
+        socket.onData = { data, ws in
+            XCTAssertEqual(data.text, "hello")
             ws.disconnect()
         }
         
@@ -68,8 +68,8 @@ final class WebSocketTests: XCTestCase {
             ws.send("hello")
         }
         
-        socket.onText = { text, ws in
-            XCTAssertEqual(text, "hello")
+        socket.onData = { data, ws in
+            XCTAssertEqual(data.text, "hello")
             ws.disconnect()
         }
         

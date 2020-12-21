@@ -45,8 +45,7 @@ public class WebSocket {
     }
     
     public var callbackQueue: DispatchQueue
-    public var onText: Optional<(String, WebSocket) -> Void> = nil
-    public var onData: Optional<(Data, WebSocket) -> Void> = nil
+    public var onData: Optional<(WebSocketData, WebSocket) -> Void> = nil
     public var onPing: Optional<(WebSocket) -> Void> = nil
     public var onPong: Optional<(WebSocket) -> Void> = nil
     public var onConnected: Optional<(WebSocket) -> Void> = nil
@@ -286,9 +285,9 @@ extension WebSocket {
         if var frameSequence = frameBuffer, frame.fin {
             switch frameSequence.type {
             case .binary:
-                callbackQueue.async { self.onData?(frameSequence.data()!, self) }
+                callbackQueue.async { self.onData?(.binary(frameSequence.data()!), self) }
             case .text:
-                callbackQueue.async { self.onText?(frameSequence.string()!, self) }
+                callbackQueue.async { self.onData?(.text(frameSequence.string()!), self) }
             case .pong:
                 waitingForPong = false
                 callbackQueue.async { self.onPong?(self) }
