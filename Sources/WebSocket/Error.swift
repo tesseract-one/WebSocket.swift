@@ -12,12 +12,28 @@ import NIOWebSocket
 public enum WebSocketError: Error, LocalizedError {
     case invalidURL
     case invalidResponseStatus(head: HTTPResponseHead)
-    case opcodeMismatch(buffer: WebSocketOpcode, frame: WebSocketOpcode)
-    case transport(error: Error)
+    case connectTimeout
     case alreadyConnected
     case disconnected
+    case opcodeMismatch(buffer: WebSocketOpcode, frame: WebSocketOpcode)
+    case transport(error: Error)
     
     public var errorDescription: String? {
         return "\(self)"
+    }
+}
+
+extension WebSocketError {
+    public static func fromNio(error: Error) -> WebSocketError {
+        if let channel = error as? ChannelError {
+            switch channel {
+            case .connectTimeout: return .connectTimeout
+            case .connectPending: return .alreadyConnected
+            case .alreadyClosed, .ioOnClosedChannel, .outputClosed, .inputClosed: return .disconnected
+            default: return .transport(error: error)
+            }
+        } else {
+            return .transport(error: error)
+        }
     }
 }
