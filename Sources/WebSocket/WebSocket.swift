@@ -162,15 +162,8 @@ public class WebSocket {
             let string = String(text)
             var buffer = channel.allocator.buffer(capacity: text.count)
             buffer.writeString(string)
-            let future = self.send(raw: buffer, opcode: .text, fin: true)
-            self._handleError(future)
-            future.whenComplete { [weak self] result in
-                self?.callbackQueue.async {
-                    switch result {
-                    case .success(_): sent?(nil)
-                    case .failure(let err): sent?(.transport(error: err))
-                    }
-                }
+            self._handleError(self.send(raw: buffer, opcode: .text, fin: true)) { err in
+                sent?(err.map{.transport(error: $0)})
             }
         }
     }
@@ -179,15 +172,8 @@ public class WebSocket {
         _withChannel { channel in
             var buffer = channel.allocator.buffer(capacity: data.count)
             buffer.writeBytes(data)
-            let future = self.send(raw: buffer, opcode: .binary, fin: true)
-            self._handleError(future)
-            future.whenComplete { [weak self] result in
-                self?.callbackQueue.async {
-                    switch result {
-                    case .success(_): sent?(nil)
-                    case .failure(let err): sent?(.transport(error: err))
-                    }
-                }
+            self._handleError(self.send(raw: buffer, opcode: .binary, fin: true)) { err in
+                sent?(err.map{.transport(error: $0)})
             }
         }
     }
@@ -261,9 +247,7 @@ public class WebSocket {
     
     private func _withChannel(_ f: @escaping (Channel) -> Void) {
         guard let channel = channel else {
-            self.callbackQueue.async {
-                self.onError?(WebSocketError.disconnected, self)
-            }
+            _error(WebSocketError.disconnected)
             return
         }
         f(channel)
@@ -274,8 +258,15 @@ public class WebSocket {
         self.callbackQueue.async { self.onError?(fixed, self) }
     }
     
-    private func _handleError<R>(_ future: EventLoopFuture<R>, cb: Optional<(Error?) -> Void> = nil) {
-        future.whenFailure(self._error)
+    private func _handleError(_ future: EventLoopFuture<Void>, cb: Optional<(Error?) -> Void> = nil) {
+        future.whenComplete { result in
+            switch result {
+            case .success(_): self.callbackQueue.async { cb?(nil) }
+            case .failure(let err):
+                self.callbackQueue.async { cb?(err) }
+                self._error(err)
+            }
+        }
     }
     
     deinit {
