@@ -19,8 +19,7 @@ public class WebSocket {
     private let tlsConfiguration: TLSConfiguration
     
     private var channel: Channel? = nil
-    private var connecting: Bool = false
-    private var waitingForClose: WebSocketErrorCode? = nil
+    private var state: WebSocketState = .disconnected
     private var waitingForPong: Bool = false
     private var frameBuffer: WebSocketFrameBuffer? = nil
     private var scheduledTimeoutTask: Scheduled<Void>? = nil
@@ -75,10 +74,6 @@ public class WebSocket {
     
     public func connect(url: URL, headers: HTTPHeaders = [:], timeout: TimeAmount = .seconds(10)) {
         group.next().execute {
-            guard self.channel == nil, !self.connecting else {
-                self._error(WebSocketError.alreadyConnected)
-                return
-            }
             self._connect(url: url, headers: headers, timeout: timeout)
         }
     }
@@ -145,33 +140,39 @@ public class WebSocket {
         return WebSocketMaskingKey((0..<4).map{_ in UInt8.random(in: .min ..< .max)})!
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _connected(channel: Channel) -> EventLoopFuture<Void> {
         self.channel = channel
         return channel.pipeline.addHandler(WebSocketHandler(webSocket: self)).map { [weak self] in
             guard let sself = self else { return }
-            sself.connecting = false
-            if sself.pingInterval != nil {
-                sself._pingAndScheduleNextTimeoutTask()
+            if let code = sself.state.disconnecting {
+                sself.state = .connected
+                sself._disconnect(code: code)
+                sself.callbackQueue.async { sself.onConnected?(sself) }
+            } else {
+                sself.state = .connected
+                if sself.pingInterval != nil {
+                    sself._pingAndScheduleNextTimeoutTask()
+                }
+                sself.callbackQueue.async { sself.onConnected?(sself) }
             }
-            sself.callbackQueue.async { sself.onConnected?(sself) }
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _disconnected(code: WebSocketErrorCode) {
+        state = .disconnected
         channel!.close(mode: .all, promise: nil)
         channel = nil
-        waitingForClose = nil
         scheduledTimeoutTask?.cancel()
         scheduledTimeoutTask = nil
         waitingForPong = false
         callbackQueue.async { self.onDisconnected?(code, self) }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _pingAndScheduleNextTimeoutTask() {
-        guard let channel = channel, channel.isActive, let pingInterval = pingInterval else {
+        guard isConnected, let pingInterval = pingInterval else {
             return
         }
         if waitingForPong {
@@ -180,16 +181,19 @@ public class WebSocket {
         } else {
             ping()
             waitingForPong = true
-            scheduledTimeoutTask = group.next().scheduleTask(
-                deadline: .now() + pingInterval,
-                _pingAndScheduleNextTimeoutTask
-            )
+            scheduledTimeoutTask = group.next().scheduleTask(deadline: .now() + pingInterval) { [weak self] in
+                self?._pingAndScheduleNextTimeoutTask()
+            }
         }
     }
     
-    // is'not thread safe
-    private func _connect(url: URL, headers: HTTPHeaders = [:], timeout: TimeAmount = .seconds(10)) {
-        connecting = true
+    // isn't thread safe
+    private func _connect(url: URL, headers: HTTPHeaders, timeout: TimeAmount) {
+        guard channel == nil, state.isDisconnected else {
+            self._error(WebSocketError.alreadyConnected)
+            return
+        }
+        state = .connecting
         
         let scheme = url.scheme ?? "ws"
         let host = url.host ?? "localhost"
@@ -256,12 +260,12 @@ public class WebSocket {
         connect.cascadeFailure(to: upgradePromise)
         let connected = connect.flatMap { _ in upgradePromise.futureResult }
         connected.whenFailure { err in
-            self.connecting = false
+            self.state = .disconnected
             self._error(err)
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _disconnect(code: WebSocketErrorCode) {
         _handleError(close(code: code))
     }
@@ -307,7 +311,7 @@ public class WebSocket {
 
 // internal methods
 extension WebSocket {
-    // is'not thread safe
+    // isn't thread safe
     func handle(frame: WebSocketFrame) {
         switch frame.opcode {
         case .connectionClose: _handleClose(frame: frame)
@@ -334,10 +338,11 @@ extension WebSocket {
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     func close(code: WebSocketErrorCode) -> EventLoopFuture<Void> {
-        if isConnected && waitingForClose == nil {
-            waitingForClose = code
+        switch state {
+        case .connected:
+            state = .disconnecting(code: code)
             
             let codeAsInt = UInt16(webSocketErrorCode: code)
             let codeToSend: WebSocketErrorCode
@@ -353,14 +358,16 @@ extension WebSocket {
             buffer.write(webSocketErrorCode: codeToSend)
 
             return _send(buffer: buffer, opcode: .connectionClose, fin: true)
-        } else {
+        case .connecting:
+            state = .disconnecting(code: code)
             return group.next().makeSucceededFuture(())
+        default: return group.next().makeSucceededFuture(())
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _handleClose(frame: WebSocketFrame) {
-        if let code = waitingForClose {
+        if let code = state.disconnecting {
             // peer confirmed close, time to close channel
             _disconnected(code: code)
         } else {
@@ -377,7 +384,7 @@ extension WebSocket {
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _handleData(frame: WebSocketFrame) {
         var frameSequence = frameBuffer ?? WebSocketFrameBuffer(type: frame.opcode)
         do {
@@ -389,7 +396,7 @@ extension WebSocket {
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _handleContinuation(frame: WebSocketFrame) {
         if var frameSequence = frameBuffer {
             do {
@@ -404,7 +411,7 @@ extension WebSocket {
         }
     }
     
-    // is'not thread safe
+    // isn't thread safe
     private func _handlePing(frame: WebSocketFrame) {
         if frame.fin {
             var frameData = frame.data
