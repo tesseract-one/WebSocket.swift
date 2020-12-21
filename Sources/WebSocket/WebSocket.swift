@@ -164,10 +164,12 @@ public class WebSocket {
             buffer.writeString(string)
             let future = self.send(raw: buffer, opcode: .text, fin: true)
             self._handleError(future)
-            future.whenComplete { result in
-                switch result {
-                case .success(_): sent?(nil)
-                case .failure(let err): sent?(.transport(error: err))
+            future.whenComplete { [weak self] result in
+                self?.callbackQueue.async {
+                    switch result {
+                    case .success(_): sent?(nil)
+                    case .failure(let err): sent?(.transport(error: err))
+                    }
                 }
             }
         }
@@ -179,10 +181,12 @@ public class WebSocket {
             buffer.writeBytes(data)
             let future = self.send(raw: buffer, opcode: .binary, fin: true)
             self._handleError(future)
-            future.whenComplete { result in
-                switch result {
-                case .success(_): sent?(nil)
-                case .failure(let err): sent?(.transport(error: err))
+            future.whenComplete { [weak self] result in
+                self?.callbackQueue.async {
+                    switch result {
+                    case .success(_): sent?(nil)
+                    case .failure(let err): sent?(.transport(error: err))
+                    }
                 }
             }
         }
