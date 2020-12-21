@@ -155,20 +155,36 @@ public class WebSocket {
         self._handleError(close(code: .normalClosure))
     }
     
-    public func send<S>(_ text: S) where S: Collection, S.Element == Character {
+    public func send<S>(_ text: S, sent: Optional<(WebSocketError?) -> Void> = nil)
+        where S: Collection, S.Element == Character
+    {
         _withChannel { channel in
             let string = String(text)
             var buffer = channel.allocator.buffer(capacity: text.count)
             buffer.writeString(string)
-            self._handleError(self.send(raw: buffer, opcode: .text, fin: true))
+            let future = self.send(raw: buffer, opcode: .text, fin: true)
+            self._handleError(future)
+            future.whenComplete { result in
+                switch result {
+                case .success(_): sent?(nil)
+                case .failure(let err): sent?(.transport(error: err))
+                }
+            }
         }
     }
     
-    public func send<Data: DataProtocol>(_ data: Data) {
+    public func send<Data: DataProtocol>(_ data: Data, sent: Optional<(WebSocketError?) -> Void> = nil) {
         _withChannel { channel in
             var buffer = channel.allocator.buffer(capacity: data.count)
             buffer.writeBytes(data)
-            self._handleError(self.send(raw: buffer, opcode: .binary, fin: true))
+            let future = self.send(raw: buffer, opcode: .binary, fin: true)
+            self._handleError(future)
+            future.whenComplete { result in
+                switch result {
+                case .success(_): sent?(nil)
+                case .failure(let err): sent?(.transport(error: err))
+                }
+            }
         }
     }
     
@@ -254,7 +270,7 @@ public class WebSocket {
         self.callbackQueue.async { self.onError?(fixed, self) }
     }
     
-    private func _handleError<R>(_ future: EventLoopFuture<R>) {
+    private func _handleError<R>(_ future: EventLoopFuture<R>, cb: Optional<(Error?) -> Void> = nil) {
         future.whenFailure(self._error)
     }
     
