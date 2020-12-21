@@ -35,7 +35,7 @@ public class WebSocket {
             if pingInterval != nil && isConnected {
                 if scheduledTimeoutTask == nil {
                     waitingForPong = false
-                    self.pingAndScheduleNextTimeoutTask()
+                    self._pingAndScheduleNextTimeoutTask()
                 }
             } else {
                 scheduledTimeoutTask?.cancel()
@@ -79,82 +79,14 @@ public class WebSocket {
                 self._error(WebSocketError.alreadyConnected)
                 return
             }
-            
-            self.connecting = true
-            
-            let scheme = url.scheme ?? "ws"
-            let host = url.host ?? "localhost"
-            let port = url.port ?? (scheme == "wss" ? 443 : 80)
-            let path = url.path
-            
-            let reqKey = Data((0..<16).map{_ in UInt8.random(in: .min ..< .max)}).base64EncodedString()
-            
-            let upgradePromise = self.group.next().makePromise(of: Void.self)
-            let bootstrap = ClientBootstrap(group: self.group)
-                .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
-                .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .connectTimeout(timeout)
-                .channelInitializer { channel in
-                    let httpHandler = HTTPInitialRequestHandler(
-                        host: host,
-                        path: path,
-                        headers: headers,
-                        upgradePromise: upgradePromise
-                    )
-                    
-                    let websocketUpgrader = NIOWebSocketClientUpgrader(
-                        requestKey: reqKey,
-                        maxFrameSize: self.maxFrameSize,
-                        automaticErrorHandling: true,
-                        upgradePipelineHandler: { channel, req in
-                            return self._connected(channel: channel)
-                        }
-                    )
-                    
-                    let config: NIOHTTPClientUpgradeConfiguration = (
-                        upgraders: [websocketUpgrader],
-                        completionHandler: { context in
-                            upgradePromise.succeed(())
-                            channel.pipeline.removeHandler(httpHandler, promise: nil)
-                        }
-                    )
-                    
-                    let future: EventLoopFuture<Void>
-                    
-                    if scheme == "wss" {
-                        do {
-                            let context = try NIOSSLContext(configuration: self.tlsConfiguration)
-                            let tlsHandler = try NIOSSLClientHandler(context: context, serverHostname: host)
-                            future = channel.pipeline.addHandler(tlsHandler)
-                        } catch {
-                            return channel.pipeline.close(mode: .all)
-                        }
-                    } else {
-                        future = self.group.next().makeSucceededFuture(())
-                    }
-                    
-                    return future.flatMap {
-                        channel.pipeline.addHTTPClientHandlers(
-                            leftOverBytesStrategy: .forwardBytes,
-                            withClientUpgrade: config
-                        )
-                    }.flatMap {
-                        channel.pipeline.addHandler(httpHandler)
-                    }
-                }
-            
-            let connect = bootstrap.connect(host: host, port: port)
-            connect.cascadeFailure(to: upgradePromise)
-            let connected = connect.flatMap { _ in upgradePromise.futureResult }
-            connected.whenFailure { err in
-                self.connecting = false
-                self._error(err)
-            }
+            self._connect(url: url, headers: headers, timeout: timeout)
         }
     }
     
     public func disconnect() {
-        _disconnect(code: .normalClosure)
+        group.next().execute {
+            self._disconnect(code: .normalClosure)
+        }
     }
     
     public func send<S>(_ text: S, sent: Optional<(WebSocketError?) -> Void> = nil)
@@ -188,42 +120,47 @@ public class WebSocket {
         sent: Optional<(WebSocketError?) -> Void> = nil
     ) {
         _withChannel(error: sent) { _ in
-            self._handleError(self.send(buffer: buffer, opcode: opcode, fin: fin)) { err in
+            self._handleError(self._send(buffer: buffer, opcode: opcode, fin: fin)) { err in
                 sent?(err.map{.fromNio(error: $0)})
             }
         }
     }
     
-    private func send(
+    private func _send(
         buffer: ByteBuffer, opcode: WebSocketOpcode, fin: Bool = true
     ) -> EventLoopFuture<Void> {
+        guard let channel = channel, isConnected else {
+            return group.next().makeFailedFuture(WebSocketError.disconnected)
+        }
         let promise = group.next().makePromise(of: Void.self)
         let frame = WebSocketFrame(
             fin: fin,
             opcode: opcode,
-            maskKey: makeMaskKey(),
+            maskKey: _makeMaskKey(),
             data: buffer
         )
-        channel!.writeAndFlush(frame, promise: promise)
+        channel.writeAndFlush(frame, promise: promise)
         return promise.futureResult
     }
     
-    private func makeMaskKey() -> WebSocketMaskingKey {
+    private func _makeMaskKey() -> WebSocketMaskingKey {
         return WebSocketMaskingKey((0..<4).map{_ in UInt8.random(in: .min ..< .max)})!
     }
     
+    // is'not thread safe
     private func _connected(channel: Channel) -> EventLoopFuture<Void> {
         self.channel = channel
         return channel.pipeline.addHandler(WebSocketHandler(webSocket: self)).map { [weak self] in
             guard let sself = self else { return }
             sself.connecting = false
             if sself.pingInterval != nil {
-                sself.pingAndScheduleNextTimeoutTask()
+                sself._pingAndScheduleNextTimeoutTask()
             }
             sself.callbackQueue.async { sself.onConnected?(sself) }
         }
     }
     
+    // is'not thread safe
     private func _disconnected(code: WebSocketErrorCode) {
         channel!.close(mode: .all, promise: nil)
         channel = nil
@@ -234,7 +171,8 @@ public class WebSocket {
         callbackQueue.async { self.onDisconnected?(code, self) }
     }
     
-    private func pingAndScheduleNextTimeoutTask() {
+    // is'not thread safe
+    private func _pingAndScheduleNextTimeoutTask() {
         guard let channel = channel, channel.isActive, let pingInterval = pingInterval else {
             return
         }
@@ -246,11 +184,86 @@ public class WebSocket {
             waitingForPong = true
             scheduledTimeoutTask = group.next().scheduleTask(
                 deadline: .now() + pingInterval,
-                pingAndScheduleNextTimeoutTask
+                _pingAndScheduleNextTimeoutTask
             )
         }
     }
     
+    // is'not thread safe
+    private func _connect(url: URL, headers: HTTPHeaders = [:], timeout: TimeAmount = .seconds(10)) {
+        connecting = true
+        
+        let scheme = url.scheme ?? "ws"
+        let host = url.host ?? "localhost"
+        let port = url.port ?? (scheme == "wss" ? 443 : 80)
+        let path = url.path
+        
+        let reqKey = Data((0..<16).map{_ in UInt8.random(in: .min ..< .max)}).base64EncodedString()
+        
+        let upgradePromise = group.next().makePromise(of: Void.self)
+        let bootstrap = ClientBootstrap(group: group)
+            .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
+            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+            .connectTimeout(timeout)
+            .channelInitializer { channel in
+                let httpHandler = HTTPInitialRequestHandler(
+                    host: host,
+                    path: path,
+                    headers: headers,
+                    upgradePromise: upgradePromise
+                )
+                
+                let websocketUpgrader = NIOWebSocketClientUpgrader(
+                    requestKey: reqKey,
+                    maxFrameSize: self.maxFrameSize,
+                    automaticErrorHandling: true,
+                    upgradePipelineHandler: { channel, req in
+                        return self._connected(channel: channel)
+                    }
+                )
+                
+                let config: NIOHTTPClientUpgradeConfiguration = (
+                    upgraders: [websocketUpgrader],
+                    completionHandler: { context in
+                        upgradePromise.succeed(())
+                        channel.pipeline.removeHandler(httpHandler, promise: nil)
+                    }
+                )
+                
+                let future: EventLoopFuture<Void>
+                
+                if scheme == "wss" {
+                    do {
+                        let context = try NIOSSLContext(configuration: self.tlsConfiguration)
+                        let tlsHandler = try NIOSSLClientHandler(context: context, serverHostname: host)
+                        future = channel.pipeline.addHandler(tlsHandler)
+                    } catch {
+                        return channel.pipeline.close(mode: .all)
+                    }
+                } else {
+                    future = self.group.next().makeSucceededFuture(())
+                }
+                
+                return future.flatMap {
+                    channel.pipeline.addHTTPClientHandlers(
+                        leftOverBytesStrategy: .forwardBytes,
+                        withClientUpgrade: config
+                    )
+                }.flatMap {
+                    channel.pipeline.addHandler(httpHandler)
+                }
+            }
+        
+        let connect = bootstrap.connect(host: host, port: port)
+        connect.cascadeFailure(to: upgradePromise)
+        let connected = connect.flatMap { _ in upgradePromise.futureResult }
+        connected.whenFailure { err in
+            self.connecting = false
+            self._error(err)
+        }
+    }
+    
+    // is'not thread safe
     private func _disconnect(code: WebSocketErrorCode) {
         _handleError(close(code: code))
     }
@@ -296,6 +309,7 @@ public class WebSocket {
 
 // internal methods
 extension WebSocket {
+    // is'not thread safe
     func handle(frame: WebSocketFrame) {
         switch frame.opcode {
         case .connectionClose: _handleClose(frame: frame)
@@ -322,6 +336,7 @@ extension WebSocket {
         }
     }
     
+    // is'not thread safe
     func close(code: WebSocketErrorCode) -> EventLoopFuture<Void> {
         if isConnected && waitingForClose == nil {
             waitingForClose = code
@@ -339,12 +354,13 @@ extension WebSocket {
             var buffer = channel!.allocator.buffer(capacity: 2)
             buffer.write(webSocketErrorCode: codeToSend)
 
-            return send(buffer: buffer, opcode: .connectionClose, fin: true)
+            return _send(buffer: buffer, opcode: .connectionClose, fin: true)
         } else {
             return group.next().makeSucceededFuture(())
         }
     }
     
+    // is'not thread safe
     private func _handleClose(frame: WebSocketFrame) {
         if let code = waitingForClose {
             // peer confirmed close, time to close channel
@@ -363,6 +379,7 @@ extension WebSocket {
         }
     }
     
+    // is'not thread safe
     private func _handleData(frame: WebSocketFrame) {
         var frameSequence = frameBuffer ?? WebSocketFrameBuffer(type: frame.opcode)
         do {
@@ -374,6 +391,7 @@ extension WebSocket {
         }
     }
     
+    // is'not thread safe
     private func _handleContinuation(frame: WebSocketFrame) {
         if var frameSequence = frameBuffer {
             do {
@@ -388,6 +406,7 @@ extension WebSocket {
         }
     }
     
+    // is'not thread safe
     private func _handlePing(frame: WebSocketFrame) {
         if frame.fin {
             var frameData = frame.data
