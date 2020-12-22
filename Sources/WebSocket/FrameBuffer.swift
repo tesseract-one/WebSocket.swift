@@ -18,9 +18,13 @@ struct WebSocketFrameBuffer {
         self.buffer = ByteBufferAllocator().buffer(capacity: 0)
         self.type = type
     }
+    
+    private func isAcceptable(frame: WebSocketFrame) -> Bool {
+        return (frame.opcode == type && buffer.readableBytes == 0) || frame.opcode == .continuation
+    }
 
     mutating func append(_ frame: WebSocketFrame) throws {
-        guard frame.opcode == type else {
+        guard isAcceptable(frame: frame) else {
             throw WebSocketError.opcodeMismatch(buffer: type, frame: frame.opcode)
         }
         var data = frame.unmaskedData

@@ -320,22 +320,6 @@ extension WebSocket {
         case .continuation: _handleContinuation(frame: frame)
         default: break
         }
-        
-        // if this frame was final and we have a non-nil frame sequence,
-        // output it to the websocket and clear storage
-        if var frameSequence = frameBuffer, frame.fin {
-            switch frameSequence.type {
-            case .binary:
-                callbackQueue.async { self.onData?(.binary(frameSequence.data()!), self) }
-            case .text:
-                callbackQueue.async { self.onData?(.text(frameSequence.string()!), self) }
-            case .pong:
-                waitingForPong = false
-                callbackQueue.async { self.onPong?(self) }
-            default: break
-            }
-            frameBuffer = nil
-        }
     }
     
     // isn't thread safe
@@ -391,6 +375,7 @@ extension WebSocket {
             // append this frame and update the sequence
             try frameSequence.append(frame)
             frameBuffer = frameSequence
+            _handleLastFrame(frame: frame)
         } catch {
             _disconnect(code: .protocolError)
         }
@@ -403,6 +388,7 @@ extension WebSocket {
                 // append this frame and update
                 try frameSequence.append(frame)
                 frameBuffer = frameSequence
+                _handleLastFrame(frame: frame)
             } catch {
                 _disconnect(code: .protocolError)
             }
@@ -423,6 +409,25 @@ extension WebSocket {
             callbackQueue.async { self.onPing?(self) }
         } else {
             _disconnect(code: .protocolError)
+        }
+    }
+    
+    // isn't thread safe
+    private func _handleLastFrame(frame: WebSocketFrame) {
+        // if this frame was final and we have a non-nil frame sequence,
+        // output it to the websocket and clear storage
+        if var frameSequence = frameBuffer, frame.fin {
+            switch frameSequence.type {
+            case .binary:
+                callbackQueue.async { self.onData?(.binary(frameSequence.data()!), self) }
+            case .text:
+                callbackQueue.async { self.onData?(.text(frameSequence.string()!), self) }
+            case .pong:
+                waitingForPong = false
+                callbackQueue.async { self.onPong?(self) }
+            default: break
+            }
+            frameBuffer = nil
         }
     }
 }

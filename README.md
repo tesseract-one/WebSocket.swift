@@ -24,7 +24,7 @@ This library based on Apple Swift NIO framework, which allows it to be cross-pla
 Add the following dependency to your [Package.swift](https://github.com/apple/swift-package-manager/blob/master/Documentation/Usage.md#define-dependencies):
 
 ```swift
-.package(url: "https://github.com/tesseract-one/WebSocket.swift.git", from: "0.0.3")
+.package(url: "https://github.com/tesseract-one/WebSocket.swift.git", from: "0.0.6")
 ```
 
 Run `swift build` and build your app.
