@@ -377,6 +377,7 @@ extension WebSocket {
             frameBuffer = frameSequence
             _handleLastFrame(frame: frame)
         } catch {
+            _error(error)
             _disconnect(code: .protocolError)
         }
     }
@@ -390,9 +391,11 @@ extension WebSocket {
                 frameBuffer = frameSequence
                 _handleLastFrame(frame: frame)
             } catch {
+                _error(error)
                 _disconnect(code: .protocolError)
             }
         } else {
+            _error(ChannelError.inappropriateOperationForState)
             _disconnect(code: .protocolError)
         }
     }
@@ -408,6 +411,7 @@ extension WebSocket {
             send(raw: frameData, opcode: .pong, fin: true)
             callbackQueue.async { self.onPing?(self) }
         } else {
+            _error(ChannelError.inappropriateOperationForState)
             _disconnect(code: .protocolError)
         }
     }
