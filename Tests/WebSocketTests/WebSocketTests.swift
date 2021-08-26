@@ -14,7 +14,7 @@ final class WebSocketTests: XCTestCase {
         let closed = expectation(description: "Socket closed")
         
         let socket = WebSocket()
-        socket.connect(url: URL(string: "ws://echo.websocket.org")!)
+        socket.connect(url: URL(string: "ws://localhost:8000")!)
         
         socket.onConnected = { ws in
             ws.send("hello")
@@ -36,8 +36,10 @@ final class WebSocketTests: XCTestCase {
     func testWebSocketTLSEcho() {
         let closed = expectation(description: "Socket closed")
         
-        let socket = WebSocket()
-        socket.connect(url: URL(string: "wss://echo.websocket.org")!)
+        var tlsConf = TLSConfiguration.makeClientConfiguration()
+        tlsConf.certificateVerification = .none
+        let socket = WebSocket(tlsConfiguration: tlsConf)
+        socket.connect(url: URL(string: "wss://localhost:8443")!)
         
         socket.onConnected = { ws in
             ws.send("hello")
@@ -60,9 +62,11 @@ final class WebSocketTests: XCTestCase {
         let closed = expectation(description: "Socket closed")
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 2)
         
-        let socket = WebSocket(eventLoopGroup: .shared(group))
+        var tlsConf = TLSConfiguration.makeClientConfiguration()
+        tlsConf.certificateVerification = .none
+        let socket = WebSocket(eventLoopGroup: .shared(group), tlsConfiguration: tlsConf)
         
-        socket.connect(url: URL(string: "wss://echo.websocket.org")!)
+        socket.connect(url: URL(string: "wss://localhost:8443")!)
         
         socket.onConnected = { ws in
             ws.send("hello")

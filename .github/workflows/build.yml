@@ -8,12 +8,18 @@ jobs:
         uses: actions/checkout@v2
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_11.4.app
+      - name: Start server
+        run: |
+          python Tests/wsserver/ExampleWSServer.py 8443 secure &
+          python Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Build and Test SPM
         run: swift test
       - name: Update Cocoa Pods repo
         run: pod repo update
       - name: Build and Test CocoaPods
         run: pod lib lint --allow-warnings --fail-fast
+      - name: Kill python servers
+        run: killall python
   linux:
     runs-on: ubuntu-latest
     container:
