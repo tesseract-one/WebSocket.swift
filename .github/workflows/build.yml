@@ -32,8 +32,8 @@ jobs:
         run: apt-get update && apt-get install -y python2.7 python-openssl
       - name: Start server
         run: |
-          python2.7 Tests/wsserver/ExampleWSServer.py 8443 secure &
-          python2.7 Tests/wsserver/ExampleWSServer.py 8000 &
+          nohup python2.7 Tests/wsserver/ExampleWSServer.py 8443 secure &
+          nohup python2.7 Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Build and Test
         run: swift test
       - name: Kill python servers
