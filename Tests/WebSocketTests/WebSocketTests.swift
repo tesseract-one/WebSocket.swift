@@ -83,7 +83,9 @@ final class WebSocketTests: XCTestCase {
         }
         
         wait(for: [closed], timeout: 5)
-        
+        // Wait for Group to dispatch tasks
+        sleep(1)
+        // Shutdown group
         XCTAssertNoThrow(try group.syncShutdownGracefully())
     }
 }
