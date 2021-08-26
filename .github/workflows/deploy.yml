@@ -18,6 +18,3 @@ jobs:
         run: pod trunk push --allow-warnings
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-      - name: Kill python servers
-        run: killall python
-        

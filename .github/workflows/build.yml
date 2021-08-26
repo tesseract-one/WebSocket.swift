@@ -18,8 +18,6 @@ jobs:
         run: pod repo update
       - name: Build and Test CocoaPods
         run: pod lib lint --allow-warnings --fail-fast
-      - name: Kill python servers
-        run: killall python
   linux:
     runs-on: ubuntu-latest
     container:
@@ -36,5 +34,3 @@ jobs:
           nohup python2.7 Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Build and Test
         run: swift test
-      - name: Kill python servers
-        run: killall python
