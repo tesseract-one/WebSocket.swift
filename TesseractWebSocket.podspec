@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'TesseractWebSocket'
-  s.version          = '0.0.7'
+  s.version          = '0.0.8'
   s.summary          = 'Cross-platform WebSocket client implementation based on Swift NIO'
 
   s.description      = <<-DESC
@@ -19,18 +19,18 @@ Library tested on all Apple platforms and Linix
   s.tvos.deployment_target = '10.0'
   s.watchos.deployment_target = '6.0'
   
-  s.swift_versions = ['5', '5.1', '5.2']
+  s.swift_versions = ['5', '5.1', '5.2', '5.3']
 
   s.module_name = 'WebSocket'
   
   s.source_files = 'Sources/WebSocket/**/*.swift'
 
-  s.dependency 'SwiftNIO', '~> 2.11'
-  s.dependency 'SwiftNIOHTTP1', '~> 2.11'
-  s.dependency 'SwiftNIOWebSocket', '~> 2.11'
-  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 2.11'
-  s.dependency 'SwiftNIOFoundationCompat', '~> 2.11'
-  s.dependency 'SwiftNIOSSL', '~> 2.0'
+  s.dependency 'SwiftNIO', '~> 2.32'
+  s.dependency 'SwiftNIOHTTP1', '~> 2.32'
+  s.dependency 'SwiftNIOWebSocket', '~> 2.32'
+  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 2.32'
+  s.dependency 'SwiftNIOFoundationCompat', '~> 2.32'
+  s.dependency 'SwiftNIOSSL', '~> 2.14'
   
   s.test_spec 'WebSocketTests' do |test_spec|
     test_spec.platforms = {:ios => '10.0', :osx => '10.12', :tvos => '10.0'}
