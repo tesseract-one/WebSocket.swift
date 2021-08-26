@@ -29,11 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install python
-        run: apt-get update && apt-get install -y python2.7
+        run: apt-get update && apt-get install -y python2.7 python-openssl
       - name: Start server
         run: |
-          python Tests/wsserver/ExampleWSServer.py 8443 secure &
-          python Tests/wsserver/ExampleWSServer.py 8000 &
+          python2.7 Tests/wsserver/ExampleWSServer.py 8443 secure &
+          python2.7 Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Build and Test
         run: swift test
       - name: Kill python servers
