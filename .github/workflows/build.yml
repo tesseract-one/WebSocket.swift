@@ -28,5 +28,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Start server
+        run: |
+          python Tests/wsserver/ExampleWSServer.py 8443 secure &
+          python Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Build and Test
         run: swift test
+      - name: Kill python servers
+        run: killall python
