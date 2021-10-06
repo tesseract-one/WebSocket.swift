@@ -25,12 +25,12 @@ Library tested on all Apple platforms and Linix
   
   s.source_files = 'Sources/WebSocket/**/*.swift'
 
-  s.dependency 'SwiftNIO', '~> 2.33'
-  s.dependency 'SwiftNIOHTTP1', '~> 2.33'
-  s.dependency 'SwiftNIOWebSocket', '~> 2.33'
-  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 2.33'
-  s.dependency 'SwiftNIOFoundationCompat', '~> 2.33'
-  s.dependency 'SwiftNIOSSL', '~> 2.16'
+  s.dependency 'SwiftNIO', '~> 2.32'
+  s.dependency 'SwiftNIOHTTP1', '~> 2.32'
+  s.dependency 'SwiftNIOWebSocket', '~> 2.32'
+  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 2.32'
+  s.dependency 'SwiftNIOFoundationCompat', '~> 2.32'
+  s.dependency 'SwiftNIOSSL', '~> 2.15'
   
   s.test_spec 'WebSocketTests' do |test_spec|
     test_spec.platforms = {:ios => '10.0', :osx => '10.12', :tvos => '10.0'}
