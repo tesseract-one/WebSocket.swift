@@ -12,8 +12,8 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_12.5.app
       - name: Start server
         run: |
-          python Tests/wsserver/ExampleWSServer.py 8443 secure &
-          python Tests/wsserver/ExampleWSServer.py 8000 &
+          python3 Tests/wsserver/ExampleWSServer.py 8443 secure &
+          python3 Tests/wsserver/ExampleWSServer.py 8000 &
       - name: Publish Pod
         run: pod trunk push --allow-warnings
         env:

@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
 
   s.description      = <<-DESC
 This library uses Swift NIO asynchronous networking framework for WebSocket client implementation.
-Library tested on all Apple platforms and Linix
+Library tested on all Apple platforms and Linux
                        DESC
 
   s.homepage         = 'https://github.com/tesseract-one/WebSocket.swift'

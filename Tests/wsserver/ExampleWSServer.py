@@ -1,13 +1,12 @@
 #main program and imports for standalone purpose       
 import sys
 import threading
-from SocketServer import ThreadingMixIn
-from BaseHTTPServer import HTTPServer
-from SimpleHTTPServer import SimpleHTTPRequestHandler
 import ssl
+import os
+from socketserver import ThreadingMixIn
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 from base64 import b64encode
 from HTTPWebSocketsHandler import HTTPWebSocketsHandler
-import os
 
 FOLDER = os.path.dirname(os.path.realpath(__file__))
 
@@ -46,9 +45,8 @@ def _ws_main():
         #Replace WSSimpleEcho with your own subclass of HTTPWebSocketHandler
         server = ThreadedHTTPServer(('', port), WSSimpleEcho)
         server.daemon_threads = True
-        server.auth = b64encode(credentials)
+        server.auth = b64encode(credentials.encode())
         if secure:
-            server.auth = b64encode(credentials)
             server.socket = ssl.wrap_socket (server.socket, certfile=os.path.join(FOLDER, 'cert.pem'), keyfile=os.path.join(FOLDER, 'server.pem'), server_side=True)
             print('started secure https server at port %d' % (port,))
         else: 
