@@ -24,7 +24,7 @@ This library based on Apple Swift NIO framework, which allows it to be cross-pla
 Add the following dependency to your [Package.swift](https://github.com/apple/swift-package-manager/blob/master/Documentation/Usage.md#define-dependencies):
 
 ```swift
-.package(url: "https://github.com/tesseract-one/WebSocket.swift.git", from: "0.1.0")
+.package(url: "https://github.com/tesseract-one/WebSocket.swift.git", from: "0.2.0")
 ```
 
 Run `swift build` and build your app.
@@ -34,7 +34,7 @@ Run `swift build` and build your app.
 Add the following to your [Podfile](http://guides.cocoapods.org/using/the-podfile.html):
 
 ```rb
-pod 'TesseractWebSocket.swift'
+pod 'TesseractWebSocket.swift', '~> 0.2'
 ```
 
 Then run `pod install`
