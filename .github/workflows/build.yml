@@ -7,7 +7,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_11.4.app
+        run: sudo xcode-select -s /Applications/Xcode_12.5.app
       - name: Start server
         run: |
           python Tests/wsserver/ExampleWSServer.py 8443 secure &
@@ -21,7 +21,7 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     container:
-      image: swift:5.2
+      image: swift:5.4
       options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --security-opt apparmor=unconfined
     steps:
       - name: Checkout
