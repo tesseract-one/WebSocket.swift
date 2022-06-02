@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install python
+        run: apt-get update && apt-get install -y python3 python3-openssl
       - name: Start server & Build & Test
         run: |
           python3 Tests/wsserver/ExampleWSServer.py 8443 secure &
