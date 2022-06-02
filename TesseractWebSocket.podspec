@@ -19,7 +19,7 @@ Library tested on all Apple platforms and Linux
   s.tvos.deployment_target = '10.0'
   s.watchos.deployment_target = '6.0'
   
-  s.swift_versions = ['5.4', '5.5', '5.6']
+  s.swift_version = '5.4'
 
   s.module_name = 'WebSocket'
   
